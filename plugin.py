@@ -3,7 +3,7 @@
 # Author: azvero
 #
 """
-<plugin key="Extron" name="Extron SSP 7.1" author="zve" version="1.0.0" wikilink="http://www.domoticz.com/wiki/plugins/plugin.html" externallink="http://www.extron.com/">
+<plugin key="Extron" name="Extron SSP 7.1" author="azvero" version="1.0.0" wikilink="http://www.domoticz.com/wiki/plugins/plugin.html" externallink="http://www.extron.com/">
   <params>
     <param field="Address" label="IP Address or Hostname" width="200px" required="true"/>
     <param field="Port" label="Telnet Port" width="50px" required="true" default="2001"/>
