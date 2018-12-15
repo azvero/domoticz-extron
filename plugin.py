@@ -1,4 +1,4 @@
-# Domoticz for controlling Extron gear
+# Domoticz plugin for controlling Extron SSP 7.1
 #
 # Author: azvero
 #
