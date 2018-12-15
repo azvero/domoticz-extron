@@ -12,21 +12,26 @@
 </plugin>
 """
 import re
+import time
 import Domoticz
 
 _CMD_GET_ALL_MUTE = "Z"
 _CMD_SET_ALL_MUTE = "{muted}Z"
 _CMD_GET_AUDIO_INPUT = "$"
 _CMD_SET_AUDIO_INPUT = "{input}$"
+_CMD_GET_MODEL_NAME = "1I"
 _CMD_GET_VOLUME = "V"
 _CMD_SET_VOLUME = "{volume}V"
 
-_RE_MUTE = re.compile(rb"Amt(?P<muted>[01])$")
-_RE_INPUT = re.compile(rb"Aud(?P<input>\d)$")
+_RE_ALL_MUTE = re.compile(rb"Amt(?P<muted>[01])$")
+_RE_AUDIO_INPUT = re.compile(rb"Aud(?P<input>\d)$")
+_RE_MODEL_NAME = re.compile(rb"SSP 7[.]1$")
 _RE_VOLUME = re.compile(rb"Vol(?P<volume>\d+)$")
 
 _UNIT_VOLUME = 1
 _UNIT_INPUT = 2
+
+_HEARTBEAT_INTERVAL_SECONDS = 60
 
 class BasePlugin(object):
 
@@ -37,6 +42,7 @@ class BasePlugin(object):
         self._input = 1
         self._muted = False
         self._volume = 50
+        self._last_heartbeat_time = time.time()
 
     def onStart(self):
         Domoticz.Log("onStart called")  # The first heartbeat will connect
@@ -48,6 +54,7 @@ class BasePlugin(object):
                 "LevelOffHidden" : "true",
                 "SelectorStyle"  : "1"
                 }, Image=5).Create()
+        Domoticz.Heartbeat(_HEARTBEAT_INTERVAL_SECONDS)
 
     def onStop(self):
         Domoticz.Log("onStop called")
@@ -65,17 +72,21 @@ class BasePlugin(object):
         Data = Data.strip()
         Domoticz.Log("onMessage called: Data=%s" % (
             Data,))
-        match = _RE_INPUT.match(Data)
+        match = _RE_AUDIO_INPUT.match(Data)
         if match:
             input = int(match.group("input"))
             Domoticz.Log("Input=%d" % input)
             self._UpdateDevice(_UNIT_INPUT, sValue=(input*10))
             return
-        match = _RE_MUTE.match(Data)
+        match = _RE_ALL_MUTE.match(Data)
         if match:
             muted = bool(int(match.group("muted")))
             Domoticz.Log("Muted=%d" % muted)
             self._UpdateDevice(_UNIT_VOLUME, nValue=int(not muted))
+            return
+        match = _RE_MODEL_NAME.match(Data)
+        if match:
+            self._last_heartbeat_time = time.time()
             return
         match = _RE_VOLUME.match(Data)
         if match:
@@ -117,7 +128,10 @@ class BasePlugin(object):
         if self._connection is None:
             self._Connect()
         elif self._connection.Connected:
-            pass
+            self._Send(_CMD_GET_MODEL_NAME)  # to check whether the connection is still alive
+            if time.time() - self._last_heartbeat_time > 3 * _HEARTBEAT_INTERVAL_SECONDS:
+                Domoticz.Error("Not heard from the device for a while, reconnecting")
+                self.onDisconnect(self._connection)
         else:
             Domoticz.Log("Not yet connected, ignoring the heartbeat")
 
